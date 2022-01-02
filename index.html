@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Lootbox Guesser</title>
+	<style>
+* {
+	font-family: sans-serif;
+	font-size: 18px;
+}
+
+.button {
+	border: black thin solid;
+	color: white;
+	background-color: #406995;
+	padding: 0.5em;
+	text-align: center;
+}
+
+.button:hover {
+	background-color: #396088;
+	cursor: pointer;
+}
+
+.loot-button.loot-button-green {
+	background-color: #2d9c3d;
+}
+
+.loot-button.loot-button-red {
+	background-color: #b64b3e;
+}
+
+.floater {
+	float: left;
+	margin-right: 1em;
+}
+
+#sum_input {
+	outline: 0;
+	border-radius: 0;
+	border: black thin solid;
+}
+
+#chances_display {
+	white-space: pre-line;
+	font-family: monospace;
+}
+	</style>
+</head>
+<body>
+
+<div class="floater">
+	<table>
+		<tbody>
+			<tr>
+				<td class="button loot-button" data-number="1"></td>
+				<td class="button loot-button" data-number="2"></td>
+				<td class="button loot-button" data-number="3"></td>
+			</tr>
+			<tr>
+				<td class="button loot-button" data-number="4"></td>
+				<td class="button loot-button" data-number="5"></td>
+				<td class="button loot-button" data-number="6"></td>
+			</tr>
+			<tr>
+				<td class="button loot-button" data-number="7"></td>
+				<td class="button loot-button" data-number="8"></td>
+				<td class="button loot-button" data-number="9"></td>
+			</tr>
+			<tr>
+				<td colspan="3" class="button" id="clear_button">очистить</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+<div class="floater">
+	<label for="sum_input">Сумма: </label><input id="sum_input" type="number" min="6" max="24" value="15">
+	<p id="chances_display"></p>
+</div>
+
+<script>
+
+const lootButtons = Array.from(document.getElementsByClassName("loot-button"));
+const clearButton = document.getElementById("clear_button");
+const chancesDisplay = document.getElementById("chances_display");
+const sumInput = document.getElementById("sum_input");
+
+const getSum = () => sumInput.value = Math.min(24, Math.max(parseInt(sumInput.value), 6));
+const GREEN = "loot-button-green";
+const RED = "loot-button-red";
+const getButtons = (color) => lootButtons.filter(e => Array.from(e.classList).includes(`${ color }`)).map(e => parseInt(e.dataset.number));
+const getGreens = () => getButtons(GREEN);
+const getReds = () => getButtons(RED);
+const RANGE = Array.from(Array(9).keys()).map(n => n + 1);
+const COMBS = RANGE.flatMap((n, i, a) => a.slice(i + 1).flatMap((m, j, b) => b.slice(j + 1).map(k => [n, m, k])));
+const OUTCOMES = Object.fromEntries(
+	Array.from(Array(24 - 6 + 1).keys())
+		.map(n => n + 6)
+		.map(n => [n, COMBS.filter(c => c.reduce((a, v) => a + v) == n)])
+);
+
+clearButton.addEventListener("click", ev => {
+	lootButtons.forEach(e => {
+		e.classList.toggle(RED, false);
+		e.classList.toggle(GREEN, false);
+	});
+	updateChances();
+});
+
+lootButtons.forEach(e => {
+	e.innerText = e.dataset.number;
+	e.addEventListener("click", ev => {
+		e.classList.toggle(RED, false);
+		e.classList.toggle(GREEN);
+		updateChances();
+	});
+	e.addEventListener("contextmenu", ev => {
+		ev.preventDefault();
+		e.classList.toggle(GREEN, false);
+		e.classList.toggle(RED);
+		updateChances();
+	});
+});
+
+sumInput.addEventListener("change", ev => {
+	updateChances();
+});
+
+updateChances();
+
+function updateChances() {
+	const currentOutcomes = OUTCOMES[getSum()]
+		.filter(out => getGreens().every(e =>  out.includes(e)))
+		.filter(out =>   getReds().every(e => !out.includes(e)));
+	const probabilities = RANGE.map((n) => [n, currentOutcomes.flat().filter(x => x == n).length / currentOutcomes.length]).sort(([_, a], [_1, b]) => b - a);
+	chancesDisplay.innerHTML = `${ probabilities.filter(([n, p]) => 0 < p && !getGreens().includes(n)).map(([n, p]) => `${ n }: ${ Math.trunc(p * 100) }%`).join("\n") || "<em>Больше комбинаций нет...</em>" }<hr />${ currentOutcomes.map(s => s.join(" + ")).join("\n") }`;
+}
+
+</script>
+
+</body>
+</html>
